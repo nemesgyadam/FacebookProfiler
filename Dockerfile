@@ -23,8 +23,19 @@ RUN npm run build
 
 # Production stage
 FROM nginx:alpine
-COPY --from=build /app/build /usr/share/nginx/html
-COPY react/nginx.conf /etc/nginx/nginx.conf
 
-EXPOSE 8080
-CMD ["nginx", "-g", "daemon off;"]
+# Install envsubst for environment variable substitution
+RUN apk add --no-cache gettext
+
+COPY --from=build /app/build /usr/share/nginx/html
+COPY react/nginx.conf /etc/nginx/nginx.conf.template
+
+# Create startup script
+RUN echo '#!/bin/sh' > /start.sh && \
+    echo 'export PORT=${PORT:-8080}' >> /start.sh && \
+    echo 'envsubst < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf' >> /start.sh && \
+    echo 'nginx -g "daemon off;"' >> /start.sh && \
+    chmod +x /start.sh
+
+EXPOSE $PORT
+CMD ["/start.sh"]
