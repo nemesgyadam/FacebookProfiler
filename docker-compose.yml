@@ -6,7 +6,7 @@ services:
       context: ./react
       dockerfile: Dockerfile
     ports:
-      - "80:80"
+      - "8080:8080"
     environment:
       - NODE_ENV=production
     depends_on:

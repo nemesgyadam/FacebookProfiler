@@ -48,7 +48,7 @@ def api_generate_profile():
 
 if __name__ == '__main__':
     # Get port from environment variable or use default
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('REACT_PORT', 8080))
     
     print(f"Starting API server on port {port}...")
     print("API endpoint: /api/generate-profile")

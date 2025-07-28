@@ -59,7 +59,7 @@ A comprehensive psychological profiling tool that analyzes your Facebook data ex
 python run_web.py
 ```
 
-Then open http://localhost:5000 in your browser.
+Then open http://localhost:8080 in your browser.
 
 ### Step 2: Follow the Web Interface
 

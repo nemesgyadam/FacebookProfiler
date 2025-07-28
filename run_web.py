@@ -14,9 +14,11 @@ from web.app import app
 
 if __name__ == '__main__':
     print("🚀 Starting Facebook Data Browser...")
-    print("📊 Navigate to: http://localhost:5000")
+    print("📊 Navigate to: http://localhost:8080")
     print("🔍 Use the search box to find specific data")
     print("📁 Click on categories to explore your data")
     print("\n🛑 Press Ctrl+C to stop the server\n")
     
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    import os
+    port = int(os.environ.get('REACT_PORT', 8080))
+    app.run(debug=True, host='0.0.0.0', port=port)
