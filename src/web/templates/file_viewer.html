@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}{{ file_path }} - Facebook Data{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+    <a href="/">🏠 Home</a> / 
+    {% set path_parts = file_path.split('/') %}
+    {% for part in path_parts[:-1] %}
+        <a href="/category/{{ path_parts[:loop.index]|join('/') }}">{{ part.replace('_', ' ').title() }}</a> /
+    {% endfor %}
+    {{ path_parts[-1] }}
+</div>
+
+<div class="card">
+    <h2>📋 {{ file_path.split('/')[-1] }}</h2>
+    
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-value">{{ file_path.split('/')[-1].split('.')[-1].upper() }}</div>
+            <div class="stat-label">File Type</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">{{ content|length if content is iterable and content is not string else 'N/A' }}</div>
+            <div class="stat-label">Items</div>
+        </div>
+    </div>
+</div>
+
+{% if content.error is defined %}
+<div class="card">
+    <h2>⚠️ Error Reading File</h2>
+    <p>{{ content.error }}</p>
+</div>
+{% else %}
+<div class="card">
+    <h2>📄 File Content</h2>
+    
+    {% if content is iterable and content is not string %}
+        {% if content is mapping %}
+            <!-- Handle object/dictionary -->
+            <div class="json-viewer">{{ content|tojson(indent=2) }}</div>
+        {% else %}
+            <!-- Handle array/list -->
+            <p><strong>This file contains {{ content|length }} items:</strong></p>
+            {% if content|length > 0 %}
+                <div class="json-viewer">{{ content[:5]|tojson(indent=2) }}</div>
+                {% if content|length > 5 %}
+                    <p style="margin-top: 10px; color: #666; font-style: italic;">
+                        ... and {{ content|length - 5 }} more items. 
+                        <a href="#" onclick="showFullContent()">Show all items</a>
+                    </p>
+                    <div id="fullContent" style="display: none;">
+                        <div class="json-viewer">{{ content|tojson(indent=2) }}</div>
+                    </div>
+                {% endif %}
+            {% endif %}
+        {% endif %}
+    {% else %}
+        <!-- Handle primitive values -->
+        <div class="json-viewer">{{ content|tojson(indent=2) }}</div>
+    {% endif %}
+</div>
+
+{% if content is iterable and content is not string and content|length > 0 %}
+<div class="card">
+    <h2>📊 Data Summary</h2>
+    
+    {% if content is mapping %}
+        <p><strong>Top-level keys:</strong></p>
+        <ul style="margin: 10px 0; padding-left: 20px;">
+            {% for key in content.keys()|list|slice(10) %}
+                <li><code>{{ key }}</code></li>
+            {% endfor %}
+            {% if content.keys()|length > 10 %}
+                <li style="color: #666; font-style: italic;">... and {{ content.keys()|length - 10 }} more keys</li>
+            {% endif %}
+        </ul>
+    {% elif content[0] is mapping %}
+        <p><strong>Sample item structure:</strong></p>
+        <div class="json-viewer">{{ content[0]|tojson(indent=2) }}</div>
+    {% endif %}
+</div>
+{% endif %}
+{% endif %}
+
+<a href="javascript:history.back()" class="back-link">← Back</a>
+
+<script>
+function showFullContent() {
+    document.getElementById('fullContent').style.display = 'block';
+    event.target.style.display = 'none';
+}
+</script>
+{% endblock %}

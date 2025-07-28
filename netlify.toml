@@ -1,0 +1,12 @@
+[build]
+  command = "cd react && npm run build"
+  publish = "react/build"
+  functions = "netlify/functions"
+
+[dev]
+  command = "cd react && npm start"
+  port = 3000
+  targetPort = 3000
+  publish = "react/build"
+  autoLaunch = true
+  framework = "create-react-app"

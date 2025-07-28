@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Facebook Data Overview{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>📊 Data Overview</h2>
+    <p>Your Facebook profile contains <strong>{{ overview.keys()|length }}</strong> main categories of data.</p>
+    
+    {% if show_profile_button %}
+    <div class="alert alert-success mt-3">
+        <i class="fas fa-check-circle"></i> Profile analysis complete! 
+        <a href="/profile" class="btn btn-sm btn-outline-success ms-2">View Profile</a>
+    </div>
+    {% else %}
+    <div class="alert alert-info mt-3">
+        <i class="fas fa-info-circle"></i> Ready to generate your psychological profile.
+        <a href="/generate-profile" class="btn btn-sm btn-primary ms-2">
+            <i class="fas fa-brain"></i> Generate Profile
+        </a>
+    </div>
+    {% endif %}
+    
+    {% set total_size = overview.values()|sum(attribute='total_size') %}
+    {% set total_files = overview.values()|sum(attribute='file_count') %}
+    
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-value">{{ overview.keys()|length }}</div>
+            <div class="stat-label">Categories</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">{{ total_files }}</div>
+            <div class="stat-label">Total Files</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">{{ (total_size / 1024 / 1024)|round(1) }}MB</div>
+            <div class="stat-label">Total Size</div>
+        </div>
+    </div>
+</div>
+
+{% for category_name, category_data in overview.items() %}
+<div class="card">
+    <h2>
+        <a href="/category/{{ category_name }}">
+            {% if category_name == 'your_facebook_activity' %}🎯
+            {% elif category_name == 'personal_information' %}👤
+            {% elif category_name == 'connections' %}👥
+            {% elif category_name == 'ads_information' %}📢
+            {% elif category_name == 'security_and_login_information' %}🔒
+            {% elif category_name == 'preferences' %}⚙️
+            {% elif category_name == 'logged_information' %}📝
+            {% else %}📁
+            {% endif %}
+            {{ category_name.replace('_', ' ').title() }}
+        </a>
+    </h2>
+    
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-value">{{ category_data.file_count }}</div>
+            <div class="stat-label">Files</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">{{ category_data.size_human }}</div>
+            <div class="stat-label">Size</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">{{ category_data.subdirs|length }}</div>
+            <div class="stat-label">Subdirectories</div>
+        </div>
+    </div>
+
+    {% if category_data.files %}
+    <h3>📄 Files in this category:</h3>
+    <div class="file-list">
+        {% for file in category_data.files[:5] %}
+        <div class="file-item">
+            <span class="file-name">
+                <a href="/file/{{ category_data.path }}/{{ file.name }}">{{ file.name }}</a>
+            </span>
+            <span class="file-meta">{{ file.size_human }} • {{ file.type.upper() }}</span>
+        </div>
+        {% endfor %}
+        {% if category_data.files|length > 5 %}
+        <div class="file-item">
+            <span style="color: #666; font-style: italic;">
+                <a href="/category/{{ category_name }}">+ {{ category_data.files|length - 5 }} more files...</a>
+            </span>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if category_data.subdirs %}
+    <h3>📁 Subdirectories:</h3>
+    <div class="dir-list">
+        {% for subdir in category_data.subdirs[:3] %}
+        <div class="dir-item">
+            <span class="dir-name">
+                <a href="/category/{{ category_name }}/{{ subdir.name }}">{{ subdir.name }}</a>
+            </span>
+            <span class="dir-meta">{{ subdir.file_count }} files • {{ subdir.size_human }}</span>
+        </div>
+        {% endfor %}
+        {% if category_data.subdirs|length > 3 %}
+        <div class="dir-item">
+            <span style="color: #666; font-style: italic;">
+                <a href="/category/{{ category_name }}">+ {{ category_data.subdirs|length - 3 }} more directories...</a>
+            </span>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endfor %}
+
+{% if not overview %}
+<div class="card">
+    <h2>⚠️ No Data Found</h2>
+    <p>The data directory was not found or is empty. Please ensure your Facebook data export is placed in the <code>data/</code> directory.</p>
+</div>
+{% endif %}
+{% endblock %}
