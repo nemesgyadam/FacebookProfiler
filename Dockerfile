@@ -8,7 +8,11 @@ WORKDIR /app
 COPY react/package*.json ./
 RUN npm ci --only=production
 
-COPY react/ ./
+# Copy all React source files
+COPY react/public ./public
+COPY react/src ./src
+COPY react/tailwind.config.js ./
+COPY react/postcss.config.js ./
 RUN npm run build
 
 # Production stage
