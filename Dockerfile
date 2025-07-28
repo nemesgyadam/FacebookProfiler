@@ -10,10 +10,6 @@ RUN npm ci --only=production
 
 # Copy all React files maintaining directory structure
 COPY react/ ./
-
-# Debug: List files to verify structure
-RUN ls -la && ls -la src/ && ls -la src/data/
-
 RUN npm run build
 
 # Production stage
