@@ -17,25 +17,6 @@ A comprehensive psychological profiling tool that analyzes your Facebook data ex
 - OpenRouter API key (for profile generation)
 - Your Facebook data export
 
-## 🛠️ Installation
-
-1. **Clone the repository**:
-   ```bash
-   git clone <repository-url>
-   cd fb-profile
-   ```
-
-2. **Install dependencies using UV**:
-   ```bash
-   uv sync
-   ```
-
-3. **Set up environment variables**:
-   ```bash
-   # Create a .env file or set environment variable
-   export OPENROUTER_API_KEY="your-openrouter-api-key"
-   ```
-
 ## 📊 Getting Your Facebook Data
 
 1. **Download Your Facebook Data**:
@@ -53,14 +34,6 @@ A comprehensive psychological profiling tool that analyzes your Facebook data ex
 
 ## 🚀 Usage
 
-### Step 1: Start the Web Server
-
-```bash
-python run_web.py
-```
-
-Then open http://localhost:8080 in your browser.
-
 ### Step 2: Follow the Web Interface
 
 The application will guide you through:
@@ -70,32 +43,8 @@ The application will guide you through:
 3. **Profile Generation**: Creates your psychological profile using AI
 4. **Results**: View your comprehensive psychological analysis
 
-### Alternative: Command Line Usage
 
-```bash
-# Generate profile directly
-python generate_profile.py
 
-# Or use the main analysis script
-python main.py data/
-```
-
-## 📁 Project Structure
-
-```
-fb-profile/
-├── data/                    # Your Facebook data export (you provide this)
-├── data_filtered/           # Processed data (auto-generated)
-├── src/
-│   ├── web/                # Web interface
-│   ├── analysis/           # Analysis modules
-│   └── data_handler.py     # Data processing logic
-├── prompts/
-│   └── profiler.txt        # AI prompting for profile generation
-├── generate_profile.py     # Profile generation script
-├── run_web.py             # Web server launcher
-└── required_files.csv     # Files needed for analysis
-```
 
 ## 🔒 Privacy & Security
 
