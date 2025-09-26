@@ -1,18 +1,79 @@
-import React, { useState } from 'react';
-import { CheckCircle, Clock, AlertCircle, Home } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { CheckCircle, Clock, AlertCircle, Home, Brain, Filter } from 'lucide-react';
 import JsonViewer from './JsonViewer';
-import { requiredFilePathsSet } from '../data/requiredFiles';
+import { selectDataForPrompt, getAvailablePrompts } from '../utils/promptDataSelector';
 
-const ProcessingPage = ({ extractedData, status, sessionId, onStartOver, onContinueToAnalysis }) => {
+const ProcessingPage = ({ extractedData, status, sessionId, onStartOver, onContinueToAnalysis, selectedPrompt = null }) => {
   const [selectedJsonFile, setSelectedJsonFile] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [dataSelection, setDataSelection] = useState(null);
+  const [availablePrompts, setAvailablePrompts] = useState([]);
+  const [currentPrompt, setCurrentPrompt] = useState(selectedPrompt || 'all');
 
-  // Filter extracted files to only show required ones
-  const filteredFiles = Object.keys(extractedData).filter(fileName => {
-    // Check if this file is in our required files list
-    const isRequired = requiredFilePathsSet.has(fileName);
-    return isRequired && fileName.toLowerCase().includes(searchTerm.toLowerCase());
-  });
+  // Debug logging
+  console.log('🔍 ProcessingPage received extractedData:', extractedData);
+  console.log('🔍 ProcessingPage extractedData keys:', Object.keys(extractedData || {}));
+
+  // Load available prompts on component mount
+  useEffect(() => {
+    const loadPrompts = async () => {
+      try {
+        const prompts = await getAvailablePrompts();
+        setAvailablePrompts(prompts);
+        console.log('📋 Available prompts for data selection:', prompts);
+      } catch (error) {
+        console.error('❌ Failed to load available prompts:', error);
+      }
+    };
+    loadPrompts();
+  }, []);
+
+  // Select data based on current prompt
+  useEffect(() => {
+    const selectData = async () => {
+      console.log(`🎯 Selecting data for prompt: "${currentPrompt}"`);
+      console.log('🎯 Available extractedData:', extractedData);
+      console.log('🎯 ExtractedData keys count:', Object.keys(extractedData || {}).length);
+      
+      if (currentPrompt === 'all') {
+        // Use all data
+        const allDataSelection = {
+          selectedData: extractedData,
+          usedFiles: Object.keys(extractedData || {}),
+          configFound: false,
+          totalFiles: Object.keys(extractedData || {}).length,
+          selectedCount: Object.keys(extractedData || {}).length
+        };
+        setDataSelection(allDataSelection);
+        console.log('📊 Using all data points:', Object.keys(extractedData || {}).length, 'files');
+        console.log('📊 All data selection result:', allDataSelection);
+      } else {
+        // Use prompt-specific data selection
+        console.log(`🔍 Calling selectDataForPrompt with prompt: "${currentPrompt}"`);
+        const selection = await selectDataForPrompt(currentPrompt, extractedData);
+        console.log('📊 Prompt-specific selection result:', selection);
+        setDataSelection(selection);
+      }
+    };
+
+    console.log('🔄 Data selection effect triggered');
+    console.log('🔄 Current prompt:', currentPrompt);
+    console.log('🔄 ExtractedData exists:', !!extractedData);
+    console.log('🔄 ExtractedData keys:', Object.keys(extractedData || {}));
+
+    if (extractedData && Object.keys(extractedData).length > 0) {
+      console.log('✅ Proceeding with data selection');
+      selectData();
+    } else {
+      console.log('⚠️ No extractedData available, skipping data selection');
+    }
+  }, [currentPrompt, extractedData]);
+
+  // Filter files based on current data selection and search term
+  const filteredFiles = dataSelection ? 
+    dataSelection.usedFiles.filter(fileName => 
+      fileName.toLowerCase().includes(searchTerm.toLowerCase())
+    ) : [];
   const getStatusInfo = () => {
     switch (status) {
       case 'completed':
@@ -113,6 +174,76 @@ const ProcessingPage = ({ extractedData, status, sessionId, onStartOver, onConti
           </div>
         </div>
 
+        {/* Prompt Selection */}
+        <div className="glass rounded-xl p-6 mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Brain className="w-5 h-5 text-blue-400" />
+            <h3 className="text-white font-semibold">Data Selection by Prompt</h3>
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-white/80 text-sm mb-2">Select Prompt Configuration:</label>
+              <select
+                value={currentPrompt}
+                onChange={(e) => setCurrentPrompt(e.target.value)}
+                className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Data Points (Default)</option>
+                {availablePrompts.map((prompt) => (
+                  <option key={prompt} value={prompt}>
+                    {prompt} Configuration
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {dataSelection && (
+              <div className="bg-white/5 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Filter className="w-4 h-4 text-green-400" />
+                  <span className="text-white font-medium">Selection Summary</span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-white/80">
+                      <span>Total Files:</span>
+                      <span>{dataSelection.totalFiles}</span>
+                    </div>
+                    <div className="flex justify-between text-white/80">
+                      <span>Selected Files:</span>
+                      <span className="text-green-400">{dataSelection.selectedCount}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-white/80">
+                      <span>Config Found:</span>
+                      <span className={dataSelection.configFound ? 'text-green-400' : 'text-yellow-400'}>
+                        {dataSelection.configFound ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-white/80">
+                      <span>Coverage:</span>
+                      <span className="text-blue-400">
+                        {Math.round((dataSelection.selectedCount / dataSelection.totalFiles) * 100)}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {dataSelection.patterns && (
+                  <div className="mt-3 pt-3 border-t border-white/10">
+                    <div className="text-white/60 text-xs">
+                      <strong>Patterns:</strong> {dataSelection.patterns.length} configured
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* File Information */}
         <div className="glass rounded-xl p-6 mb-6">
           <h3 className="text-white font-semibold mb-4">📁 Processing Details</h3>
@@ -120,6 +251,10 @@ const ProcessingPage = ({ extractedData, status, sessionId, onStartOver, onConti
             <div className="flex justify-between">
               <span>Files extracted:</span>
               <span>{Object.keys(extractedData).length}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Files for analysis:</span>
+              <span className="text-green-400">{dataSelection?.selectedCount || 0}</span>
             </div>
             <div className="flex justify-between">
               <span>Session ID:</span>
@@ -138,10 +273,12 @@ const ProcessingPage = ({ extractedData, status, sessionId, onStartOver, onConti
           </div>
         </div>
 
-        {/* Extracted JSON Files List */}
-        {status === 'completed' && (Object.keys(extractedData).length > 0) && (
+        {/* Selected JSON Files List */}
+        {status === 'completed' && dataSelection && (
           <div className="glass rounded-xl p-6 mb-6">
-            <h3 className="text-white font-semibold mb-4">Extracted Files ({filteredFiles.length} of {Object.keys(extractedData).length})</h3>
+            <h3 className="text-white font-semibold mb-4">
+              Selected Files ({filteredFiles.length} of {dataSelection.selectedCount} selected, {dataSelection.totalFiles} total)
+            </h3>
             <input
               type="text"
               placeholder="Search files..."
@@ -187,10 +324,17 @@ const ProcessingPage = ({ extractedData, status, sessionId, onStartOver, onConti
           {status === 'completed' && (
             <div className="space-y-4">
               <button
-                onClick={onContinueToAnalysis}
+                onClick={() => {
+                  console.log('🚀 Continue to Analysis clicked!');
+                  console.log('🚀 Current prompt:', currentPrompt);
+                  console.log('🚀 Data selection:', dataSelection);
+                  console.log('🚀 Selected data keys:', Object.keys(dataSelection?.selectedData || {}));
+                  console.log('🚀 Used files:', dataSelection?.usedFiles);
+                  onContinueToAnalysis(dataSelection?.selectedData);
+                }}
                 className="w-full bg-green-500 text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition-colors"
               >
-                Continue to Analysis
+                Continue to Analysis ({dataSelection?.selectedCount || 0} files)
               </button>
               <button
                 onClick={onStartOver}

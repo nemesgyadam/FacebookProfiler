@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import LandingPage from './components/LandingPage';
-import ProcessingPage from './components/ProcessingPage';
 import AnalysisPage from './components/AnalysisPage';
 import ProfileAnalysisPage from './components/ProfileAnalysisPage';
+import OpenRouterTestPage from './components/OpenRouterTestPage';
 import langfuseManager from './utils/langfuseClient';
 import './App.css';
 
 function App() {
   const [currentStep, setCurrentStep] = useState('landing');
   const [uploadedFiles, setUploadedFiles] = useState([]);
-  const [processingStatus, setProcessingStatus] = useState('initializing');
+  const [selectedData, setSelectedData] = useState({});
   const [prompts, setPrompts] = useState([]);
 
   // Initialize Langfuse and load prompts on app startup
@@ -41,43 +41,41 @@ function App() {
         console.error('❌ Failed to initialize Langfuse:', error);
       }
     };
-
+    
     initializeLangfuse();
   }, []);
 
-  // Handle files uploaded from landing page
+  // Handle files uploaded from landing page - go directly to AI analysis
   const handleFilesUploaded = (extractedData) => {
-    setUploadedFiles(extractedData); // Store extracted data
-    setProcessingStatus('completed');
-    
-    // Skip processing page and go directly to analysis
-    setCurrentStep('analysis');
+    console.log('📁 Files uploaded to App.js:', Object.keys(extractedData).length, 'files');
+    setUploadedFiles(extractedData);
+    setSelectedData(extractedData);
+    setCurrentStep('ai-analysis');
   };
 
+  // Handle start over
   const handleStartOver = () => {
+    setUploadedFiles({});
+    setSelectedData({});
     setCurrentStep('landing');
-    setUploadedFiles([]);
-    setProcessingStatus('initializing');
   };
 
   return (
     <div className="App min-h-screen">
-      {currentStep === 'landing' && (
-        <LandingPage onFilesUploaded={handleFilesUploaded} />
+      {currentStep === 'test' && (
+        <OpenRouterTestPage onBack={() => setCurrentStep('landing')} />
       )}
       
-      {currentStep === 'processing' && (
-        <ProcessingPage 
-          extractedData={uploadedFiles}
-          status={processingStatus}
-          onStartOver={handleStartOver}
-          onContinueToAnalysis={() => setCurrentStep('analysis')}
+      {currentStep === 'landing' && (
+        <LandingPage 
+          onFilesUploaded={handleFilesUploaded} 
+          onTestClick={() => setCurrentStep('test')}
         />
       )}
-
+      
       {currentStep === 'analysis' && (
         <AnalysisPage
-          extractedData={uploadedFiles}
+          extractedData={Object.keys(selectedData).length > 0 ? selectedData : uploadedFiles}
           onStartOver={handleStartOver}
           onAIAnalysis={() => setCurrentStep('ai-analysis')}
         />
@@ -85,7 +83,7 @@ function App() {
 
       {currentStep === 'ai-analysis' && (
         <ProfileAnalysisPage
-          jsonData={uploadedFiles}
+          jsonData={Object.keys(selectedData).length > 0 ? selectedData : uploadedFiles}
           prompts={prompts}
           onBack={() => setCurrentStep('analysis')}
           onStartOver={handleStartOver}

@@ -3,10 +3,21 @@ import { useDropzone } from 'react-dropzone';
 import { Brain, Download, Upload, File, X, CheckCircle, AlertCircle } from 'lucide-react';
 import { ZipReader, BlobReader, TextWriter } from '@zip.js/zip.js';
 
-const LandingPage = ({ onFilesUploaded }) => {
+const LandingPage = ({ onFilesUploaded, onTestClick }) => {
   const [files, setFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [showDownloadInstructions, setShowDownloadInstructions] = useState(false);
+  const [notification, setNotification] = useState(null);
+
+  // Show notification helper
+  const showNotification = (notificationData) => {
+    setNotification(notificationData);
+    if (notificationData.duration) {
+      setTimeout(() => {
+        setNotification(null);
+      }, notificationData.duration);
+    }
+  };
 
   
   const onDrop = useCallback((acceptedFiles, rejectedFiles) => {
@@ -24,12 +35,22 @@ const LandingPage = ({ onFilesUploaded }) => {
         status: 'ready',
         size: file.size
       }))]);
+      
+      // Success - no popup needed, just proceed
+      console.log(`✅ Successfully loaded ${zipFiles.length} ZIP file${zipFiles.length > 1 ? 's' : ''}`);
+      // Files are processed and ready - no popup needed
     }
 
     // Show error for rejected files
     if (rejectedFiles.length > 0 || zipFiles.length !== acceptedFiles.length) {
       // Handle rejected files (non-zip files)
       console.warn('Some files were rejected. Only ZIP files are accepted.');
+      showNotification({
+        type: 'error',
+        title: '🚫 Hold Up, Data Detective!',
+        message: 'We only accept the original ZIP file from Facebook. Please upload your Facebook data export as-is - no unpacking required! 📦✨',
+        duration: 6000
+      });
     }
   }, []);
 
@@ -59,29 +80,86 @@ const LandingPage = ({ onFilesUploaded }) => {
   const handleUpload = async () => {
     if (files.length === 0) return;
     
+    console.log('🚀 Starting ZIP extraction process...');
+    console.log('📦 Files to process:', files.length);
+    
     setIsUploading(true);
     let allFilesExtractedData = {};
 
     try {
       for (const fileObj of files) {
+        console.log(`📂 Processing ZIP file: ${fileObj.file.name} (${formatFileSize(fileObj.file.size)})`);
+        
         setFiles(prev => prev.map(f => f.id === fileObj.id ? { ...f, status: 'unzipping' } : f));
         const reader = new ZipReader(new BlobReader(fileObj.file));
         const entries = await reader.getEntries();
-
+        
+        console.log(`📋 Found ${entries.length} entries in ZIP file`);
+        
+        let jsonFileCount = 0;
+        let htmlFileCount = 0;
+        let totalFileCount = 0;
+        
+        // First pass: count file types
         for (const entry of entries) {
-          if (!entry.directory && entry.filename.toLowerCase().endsWith('.json')) {
-            const writer = new TextWriter();
-            const content = await entry.getData(writer);
-            allFilesExtractedData[entry.filename] = content;
+          if (!entry.directory) {
+            totalFileCount++;
+            if (entry.filename.toLowerCase().endsWith('.json')) {
+              jsonFileCount++;
+            } else if (entry.filename.toLowerCase().endsWith('.html')) {
+              htmlFileCount++;
+            }
           }
         }
+        
+        console.log(`📊 File type summary:`);
+        console.log(`   📄 Total files: ${totalFileCount}`);
+        console.log(`   🔧 JSON files: ${jsonFileCount}`);
+        console.log(`   🌐 HTML files: ${htmlFileCount}`);
+        console.log(`   📁 Other files: ${totalFileCount - jsonFileCount - htmlFileCount}`);
+        
+        // Second pass: process files (both JSON and HTML)
+        let processedFileCount = 0;
+        for (const entry of entries) {
+          const filename = entry.filename.toLowerCase();
+          const isJsonFile = filename.endsWith('.json');
+          const isHtmlFile = filename.endsWith('.html');
+          
+          if (!entry.directory && (isJsonFile || isHtmlFile)) {
+            const fileType = isJsonFile ? 'JSON' : 'HTML';
+            console.log(`✅ Processing ${fileType} file: ${entry.filename}`);
+            try {
+              const writer = new TextWriter();
+              const content = await entry.getData(writer);
+              allFilesExtractedData[entry.filename] = content;
+              processedFileCount++;
+              console.log(`📄 Successfully extracted: ${entry.filename} (${content.length} characters)`);
+            } catch (entryError) {
+              console.error(`❌ Failed to extract ${entry.filename}:`, entryError);
+            }
+          }
+        }
+        
+        console.log(`📊 Extracted ${processedFileCount} files (JSON + HTML) from ${fileObj.file.name}`);
         await reader.close();
         setFiles(prev => prev.map(f => f.id === fileObj.id ? { ...f, status: 'unzipped' } : f));
       }
-      console.log('All files extracted:', allFilesExtractedData);
+      
+      console.log('🎉 ZIP extraction completed!');
+      console.log('📈 Total files extracted (JSON + HTML):', Object.keys(allFilesExtractedData).length);
+      console.log('📋 Extracted file names:', Object.keys(allFilesExtractedData));
+      
+      // Count file types in extracted data
+      const extractedFiles = Object.keys(allFilesExtractedData);
+      const extractedJson = extractedFiles.filter(f => f.toLowerCase().endsWith('.json')).length;
+      const extractedHtml = extractedFiles.filter(f => f.toLowerCase().endsWith('.html')).length;
+      console.log(`📊 Extracted breakdown: ${extractedJson} JSON files, ${extractedHtml} HTML files`);
+      
+      console.log('💾 All extracted data:', allFilesExtractedData);
+      
       onFilesUploaded(allFilesExtractedData); // Pass extracted data to App.js
     } catch (error) {
-      console.error('Error during unzipping:', error);
+      console.error('❌ Error during ZIP extraction:', error);
       setFiles(prev => prev.map(f => ({ ...f, status: 'error' })));
     } finally {
       setIsUploading(false);
@@ -98,21 +176,11 @@ const LandingPage = ({ onFilesUploaded }) => {
             <div className="flex items-center gap-4 mb-2">
               <Brain className="w-10 h-10 text-white" />
               <h1 className="text-3xl font-bold text-white">
-                Facebook Psychology Analysis
+                Who are you?
               </h1>
             </div>
             <p className="text-white/80">
               Get AI-powered psychological insights from your Facebook data
-            </p>
-          </div>
-          <div className="mt-6 p-4 bg-white/5 rounded-lg text-left max-w-2xl mx-auto">
-            <p className="text-white/80 text-sm mb-3">
-              Did you know? Social media platforms like Facebook track your every move - from what you like and share to how long you look at each post. 
-              They know your interests, fears, political views, and even predict your future behavior.
-            </p>
-            <p className="text-white/80 text-sm">
-              This tool helps you understand what your data reveals about you. Simply upload your Facebook data to get a comprehensive psychological profile, 
-              including personality traits, emotional patterns, and behavioral insights - all processed securely on your device.
             </p>
           </div>
         </div>
@@ -185,6 +253,41 @@ const LandingPage = ({ onFilesUploaded }) => {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Why This Matters - Informational Section */}
+        <div className="glass rounded-xl p-6 mb-6">
+          <div className="max-w-3xl mx-auto text-center">
+            <div className="mb-4">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-500/20 rounded-full mb-3">
+                <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-white mb-2">Why This Matters</h3>
+            </div>
+            
+            <div className="space-y-4 text-left">
+              <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                <p className="text-white/90 text-sm leading-relaxed">
+                  <span className="font-medium text-blue-400">Did you know?</span> Social media platforms like Facebook track your every move - from what you like and share to how long you look at each post. They know your interests, fears, political views, and even predict your future behavior.
+                </p>
+              </div>
+              
+              <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                <p className="text-white/90 text-sm leading-relaxed">
+                  <span className="font-medium text-green-400">Take control:</span> This tool helps you understand what your data reveals about you. Simply upload your Facebook data to get a comprehensive psychological profile, including personality traits, emotional patterns, and behavioral insights - all processed <span className="font-medium text-white">securely on your device</span>.
+                </p>
+              </div>
+            </div>
+            
+            <div className="mt-4 flex items-center justify-center gap-2 text-xs text-white/60">
+              <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>Your data never leaves your browser • 100% private analysis</span>
+            </div>
+          </div>
         </div>
         
         {/* Upload Section */}
@@ -303,9 +406,76 @@ const LandingPage = ({ onFilesUploaded }) => {
             >
               Nemes
             </a></p>
+            
+            {/* Barely visible test button */}
+            {onTestClick && (
+              <button
+                onClick={onTestClick}
+                className="mt-2 text-white/20 hover:text-white/40 text-xs transition-colors duration-300"
+                title="Test OpenRouter Proxy"
+              >
+                •
+              </button>
+            )}
           </div>
         </footer>
       </div>
+
+      {/* Cool Notification Popup */}
+      {notification && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className={`backdrop-blur-md border rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl animate-bounce-in ${
+            notification.type === 'success' 
+              ? 'bg-gradient-to-br from-green-900/90 to-green-800/90 border-green-500/30' 
+              : 'bg-gradient-to-br from-red-900/90 to-red-800/90 border-red-500/30'
+          }`}>
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                  notification.type === 'success' 
+                    ? 'bg-green-500/20' 
+                    : 'bg-red-500/20'
+                }`}>
+                  {notification.type === 'success' ? (
+                    <CheckCircle className="w-6 h-6 text-green-400" />
+                  ) : (
+                    <AlertCircle className="w-6 h-6 text-red-400" />
+                  )}
+                </div>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-white mb-2">
+                  {notification.title}
+                </h3>
+                <p className={`text-sm leading-relaxed ${
+                  notification.type === 'success' ? 'text-green-100' : 'text-red-100'
+                }`}>
+                  {notification.message}
+                </p>
+              </div>
+              <button
+                onClick={() => setNotification(null)}
+                className="flex-shrink-0 w-8 h-8 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-colors"
+              >
+                <X className="w-4 h-4 text-white" />
+              </button>
+            </div>
+            
+            <div className="mt-4 flex justify-center">
+              <button
+                onClick={() => setNotification(null)}
+                className={`px-6 py-2 text-white rounded-lg font-medium transition-colors ${
+                  notification.type === 'success' 
+                    ? 'bg-green-500 hover:bg-green-600' 
+                    : 'bg-red-500 hover:bg-red-600'
+                }`}
+              >
+                {notification.type === 'success' ? 'Awesome! 🚀' : 'Got it! 👍'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

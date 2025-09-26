@@ -72,7 +72,7 @@ class ProfileAnalyzer {
     let currentChunk = "";
     let filesInCurrentChunk = 0;
 
-    console.log("Processing JSON files...");
+    console.log("Processing files (JSON and HTML)...");
 
     // Sort files by size (smallest first) to optimize chunking
     const sortedEntries = Object.entries(jsonFiles).sort((a, b) => {
@@ -81,11 +81,25 @@ class ProfileAnalyzer {
 
     for (const [filename, content] of sortedEntries) {
       try {
-        // Parse JSON content if it's a string
-        const jsonData = typeof content === 'string' ? JSON.parse(content) : content;
+        let formattedContent;
         
-        // Format the data
-        const formattedContent = JSON.stringify(jsonData, null, 2);
+        // Check if it's JSON or HTML based on filename
+        if (filename.toLowerCase().endsWith('.json')) {
+          // Parse JSON content if it's a string
+          const jsonData = typeof content === 'string' ? JSON.parse(content) : content;
+          formattedContent = JSON.stringify(jsonData, null, 2);
+        } else if (filename.toLowerCase().endsWith('.html')) {
+          // For HTML files, use content directly but truncate if too long
+          formattedContent = typeof content === 'string' ? content : String(content);
+          // Truncate very long HTML files to prevent token overflow
+          if (formattedContent.length > 50000) {
+            formattedContent = formattedContent.substring(0, 50000) + '\n\n[Content truncated due to length...]';
+          }
+        } else {
+          // For other file types, treat as text
+          formattedContent = typeof content === 'string' ? content : String(content);
+        }
+        
         const fileEntry = `\n\n### FILE: ${filename}\n\n${formattedContent}`;
         
         // Check if adding this file would exceed chunk size
@@ -117,7 +131,7 @@ class ProfileAnalyzer {
       chunks.push(currentChunk);
     }
 
-    console.log(`Processed ${totalFiles} JSON files into ${chunks.length} chunks`);
+    console.log(`Processed ${totalFiles} files (JSON/HTML) into ${chunks.length} chunks`);
     console.log(`Total characters: ${totalChars}`);
     console.log(`Estimated tokens: ${Math.floor(totalChars / 4)}`);
 

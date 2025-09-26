@@ -51,15 +51,35 @@ class LangfuseManager {
     }
 
     try {
-      console.log('🔄 Loading all prompts from Langfuse via API...');
+      console.log('🔄 Loading all prompts from Langfuse via REST API...');
       
       // Clear existing prompts
       this.prompts.clear();
 
-      // Use the Langfuse API to get all prompts
-      const promptsList = await this.client.api.promptsList();
+      // Use direct REST API call since SDK methods are not working
+      const baseUrl = process.env.REACT_APP_LANGFUSE_BASE_URL || "https://cloud.langfuse.com";
+      const secretKey = process.env.REACT_APP_LANGFUSE_SECRET_KEY || "sk-lf-eb9377c7-f9ca-464c-b9ba-6b2f0e1860e3";
+      const publicKey = process.env.REACT_APP_LANGFUSE_PUBLIC_KEY || "pk-lf-1c808f57-b0f9-4756-8ed4-0050ac4feb1d";
       
-      console.log('Raw prompts API response:', promptsList);
+      // Create Basic Auth header
+      const authHeader = 'Basic ' + btoa(publicKey + ':' + secretKey);
+      
+      console.log('🌐 Making direct REST API call to:', `${baseUrl}/api/public/v2/prompts`);
+      
+      const response = await fetch(`${baseUrl}/api/public/v2/prompts`, {
+        method: 'GET',
+        headers: {
+          'Authorization': authHeader,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`REST API error: ${response.status} ${response.statusText}`);
+      }
+
+      const promptsList = await response.json();
+      console.log('Raw prompts REST API response:', promptsList);
 
       if (promptsList && promptsList.data && Array.isArray(promptsList.data)) {
         // Process each prompt metadata
